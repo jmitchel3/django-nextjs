@@ -42,7 +42,7 @@ if DEBUG:
 
 # Application definition
 SITE_ID = 1
-INSTALLED_APPS = INSTALLED_APPS
+# INSTALLED_APPS is imported above from .installed
 
 
 MIDDLEWARE = [

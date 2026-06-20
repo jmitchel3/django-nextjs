@@ -9,8 +9,11 @@ scripts:
     - cd backend/src
     - ../../venv/bin/python manage.py runserver
   api-migrate:
-    - cd backend/src 
+    - cd backend/src
     - ../../venv/bin/python manage.py migrate
+  api-test:
+    - cd backend/src
+    - ../../venv/bin/python manage.py test
   api-install:
     - cd backend 
     - ../venv/bin/pip-compile src/requirements/dev.in --output-file requirements.dev.txt
