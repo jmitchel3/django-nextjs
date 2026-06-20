@@ -2,6 +2,7 @@
 Django settings for cfehome project using Django 5.1.5.
 """
 
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.management.utils import get_random_secret_key
@@ -119,6 +120,17 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+
+
+# JSON Web Tokens (django-ninja-jwt)
+# Keep the token lifetimes aligned with the frontend auth cookie maxAge
+# (see frontend/src/lib/auth.js). ninja_jwt defaults to a 5-minute access token,
+# which would 401 long before the 1-hour access cookie expires. There is no
+# automatic refresh-on-401 yet, so matching the lifetimes avoids surprise logouts.
+NINJA_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+}
 
 
 # Internationalization

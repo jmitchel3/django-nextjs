@@ -176,3 +176,37 @@ class TokenTests(TestCase):
         response = post_json(self.client, TOKEN_REFRESH_URL, {"refresh": refresh})
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["access"])
+
+
+class CurrentUserTests(TestCase):
+    def setUp(self):
+        seed_user()
+
+    def _access_token(self):
+        response = post_json(
+            self.client,
+            TOKEN_PAIR_URL,
+            {"username": VALID_PAYLOAD["username"], "password": VALID_PAYLOAD["password"]},
+        )
+        return response.json()["access"]
+
+    def test_me_requires_authentication(self):
+        self.assertEqual(self.client.get("/api/me/").status_code, 401)
+
+    def test_me_returns_authenticated_user(self):
+        # Full round trip: the access token actually authenticates a request to a
+        # user_required endpoint (not just that it was issued).
+        token = self._access_token()
+        response = self.client.get("/api/me/", HTTP_AUTHORIZATION=f"Bearer {token}")
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["username"], VALID_PAYLOAD["username"])
+        self.assertEqual(body["email"], VALID_PAYLOAD["email"])
+        self.assertTrue(body["is_authenticated"])
+        self.assertNotIn("access_token", body)  # /me must not leak tokens
+
+    def test_me_rejects_garbage_token(self):
+        response = self.client.get(
+            "/api/me/", HTTP_AUTHORIZATION="Bearer not-a-real-token"
+        )
+        self.assertEqual(response.status_code, 401)
