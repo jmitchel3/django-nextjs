@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/components/authProvider"
+import { extractErrorMessage, extractFieldErrors } from "@/lib/formErrors"
 
-const LOGIN_URL = "/api/signup/"
+const SIGNUP_URL = "/api/signup/"
 
 
 export default function Page() {
@@ -38,7 +39,7 @@ export default function Page() {
       body: jsonData
     }
     
-    const response = await fetch(LOGIN_URL, requestOptions)
+    const response = await fetch(SIGNUP_URL, requestOptions)
     
     let data = {}
     try {
@@ -50,18 +51,10 @@ export default function Page() {
 
     if (response.ok) {
       auth.login(data?.username)
+    } else if (Array.isArray(data.detail)) {
+      setFieldErrors(extractFieldErrors(data))
     } else {
-      if (data.detail && Array.isArray(data.detail)) {
-        const newFieldErrors = {}
-        data.detail.forEach(error => {
-          const fieldName = error.loc[error.loc.length - 1]
-          const mappedFieldName = fieldName === 'confirm_password' ? 'confirmPassword' : fieldName
-          newFieldErrors[mappedFieldName] = error.msg
-        })
-        setFieldErrors(newFieldErrors)
-      } else {
-        setError(data.message || "Signup failed. Please try again.")
-      }
+      setError(extractErrorMessage(data) || "Signup failed. Please try again.")
     }
   }
   return (

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useAuth } from "@/components/authProvider"
+import { extractErrorMessage } from "@/lib/formErrors"
 
 const LOGIN_URL = "/api/login/"
 
@@ -40,7 +41,7 @@ export default function Page() {
         if (response.ok) {
             auth.login(data?.username)
         } else {
-          setError(data.message || "Login failed. Please check your credentials.")
+          setError(extractErrorMessage(data) || "Login failed. Please check your credentials.")
         }
     }
   return (

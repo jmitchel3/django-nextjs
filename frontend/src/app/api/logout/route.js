@@ -3,6 +3,6 @@ import { NextResponse } from "next/server";
 
 
 export async function POST(request) {
-    deleteTokens()
+    await deleteTokens()
     return NextResponse.json({}, {status: 200})
 }

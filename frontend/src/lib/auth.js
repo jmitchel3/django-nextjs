@@ -1,48 +1,55 @@
-const { cookies } = require("next/headers")
+import { cookies } from "next/headers"
 
-const TOKEN_AGE = 3600
+// In Next.js 15 `cookies()` is async and must be awaited, so every helper here
+// is async. Access tokens are short-lived; refresh tokens outlive them.
+const ACCESS_TOKEN_AGE = 60 * 60 // 1 hour
+const REFRESH_TOKEN_AGE = 60 * 60 * 24 // 1 day
 const TOKEN_NAME = "auth-token"
 const TOKEN_REFRESH_NAME = "auth-refresh-token"
 
-export function getToken(){
-    // api requests
-    const myAuthToken = cookies().get(TOKEN_NAME)
-    return myAuthToken?.value
+const baseCookieOptions = {
+    httpOnly: true, // limit client-side js
+    sameSite: "strict",
+    secure: process.env.NODE_ENV !== "development",
 }
 
-
-export function getRefreshToken(){
+export async function getToken() {
     // api requests
-    const myAuthToken = cookies().get(TOKEN_REFRESH_NAME)
-    return myAuthToken?.value
+    const store = await cookies()
+    return store.get(TOKEN_NAME)?.value
 }
 
-export function setToken(authToken){
+export async function getRefreshToken() {
+    // api requests
+    const store = await cookies()
+    return store.get(TOKEN_REFRESH_NAME)?.value
+}
+
+export async function setToken(authToken) {
     // login
-    return cookies().set({
+    const store = await cookies()
+    return store.set({
         name: TOKEN_NAME,
         value: authToken,
-        httpOnly: true, // limit client-side js
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV !== 'development',
-        maxAge: TOKEN_AGE,
+        ...baseCookieOptions,
+        maxAge: ACCESS_TOKEN_AGE,
     })
 }
 
-export function setRefreshToken(authRefreshToken){
+export async function setRefreshToken(authRefreshToken) {
     // login
-    return cookies().set({
+    const store = await cookies()
+    return store.set({
         name: TOKEN_REFRESH_NAME,
         value: authRefreshToken,
-        httpOnly: true, // limit client-side js
-        sameSite: 'strict',
-        secure: process.env.NODE_ENV !== 'development',
-        maxAge: TOKEN_AGE,
+        ...baseCookieOptions,
+        maxAge: REFRESH_TOKEN_AGE,
     })
 }
 
-export function deleteTokens(){
+export async function deleteTokens() {
     // logout
-    cookies().delete(TOKEN_REFRESH_NAME)
-    return cookies().delete(TOKEN_NAME)
+    const store = await cookies()
+    store.delete(TOKEN_NAME)
+    store.delete(TOKEN_REFRESH_NAME)
 }
