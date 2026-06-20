@@ -30,6 +30,3 @@ class DjangoNextTokenObtainPairController(TokenObtainPairController):
 @api_controller("token", tags=["Auth"])
 class DjangoNextCustomController(DjangoNextTokenObtainPairController):
     """obtain token and refresh_token with support for trailing slashes"""
-
-    pass
-    pass
