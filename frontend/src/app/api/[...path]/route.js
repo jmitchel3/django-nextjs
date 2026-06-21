@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { getToken } from '@/lib/auth';
+import { refreshAccessToken } from '@/lib/tokenRefresh';
 import { urlJoin } from '@/lib/urlJoin';
 
 const DJANGO_API_URL = process.env.DJANGO_API_URL;
@@ -14,7 +15,8 @@ const API_BASE_PATH = new URL(DJANGO_API_URL).pathname;
  * the httpOnly cookie as a Bearer header (so the browser never handles the JWT),
  * forwards the method/query/body/content-type, and faithfully relays the
  * backend's status and body — including non-JSON error pages — instead of
- * collapsing everything to a single 500.
+ * collapsing everything to a single 500. When the access token has expired it
+ * transparently refreshes it from the refresh-token cookie and retries once.
  */
 async function proxy(request, params) {
     const segments = (await params).path;
@@ -28,22 +30,33 @@ async function proxy(request, params) {
         return NextResponse.json({ detail: 'Invalid path' }, { status: 400 });
     }
 
-    const headers = {
-        'Content-Type': request.headers.get('content-type') || 'application/json',
-    };
-    const token = await getToken();
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
+    const contentType = request.headers.get('content-type') || 'application/json';
+    const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+    // Read the body once so it can be replayed on the post-refresh retry.
+    const body = hasBody ? await request.text() : undefined;
 
-    const init = { method: request.method, headers };
-    if (request.method !== 'GET' && request.method !== 'HEAD') {
-        init.body = await request.text();
-    }
+    const send = (token) => {
+        const headers = { 'Content-Type': contentType };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return fetch(url, { method: request.method, headers, ...(hasBody ? { body } : {}) });
+    };
 
     let response;
     try {
-        response = await fetch(url, init);
+        const token = await getToken();
+        response = await send(token);
+        // We sent a token but got 401 -> it likely expired. Mint a new one from
+        // the refresh cookie and retry once, so a logged-in user isn't bounced
+        // until the refresh token itself dies. (No token sent => nothing to
+        // refresh; a 401 there just means login is required.)
+        if (response.status === 401 && token) {
+            const refreshed = await refreshAccessToken();
+            if (refreshed) {
+                response = await send(refreshed);
+            }
+        }
     } catch (error) {
         console.error(`Proxy failed to reach backend at ${url}:`, error);
         return NextResponse.json(
@@ -52,11 +65,11 @@ async function proxy(request, params) {
         );
     }
 
-    const body = await response.text();
-    const contentType = response.headers.get('content-type') || 'text/plain';
-    return new NextResponse(body, {
+    const responseBody = await response.text();
+    const responseContentType = response.headers.get('content-type') || 'text/plain';
+    return new NextResponse(responseBody, {
         status: response.status,
-        headers: { 'Content-Type': contentType },
+        headers: { 'Content-Type': responseContentType },
     });
 }
 
